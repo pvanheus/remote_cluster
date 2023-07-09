@@ -1,0 +1,47 @@
+---
+- name: Unpack shell lesson the data for each user
+  ansible.builtin.unarchive:
+    src: shell_data.tar.gz
+    dest: "/shared/home/{{item}}"
+    owner: "{{item}}"
+    group: "{{training_group.name}}"
+    creates: "/shared/home/{{item}}/shell_data"
+  loop: "{{usernames}}"
+
+- name: Create a r_data directory
+  ansible.builtin.file:
+    path: "/shared/home/{{item}}/r_data"
+    state: directory
+    owner: "{{item}}"
+    group: "{{training_group.name}}"
+  loop: "{{usernames}}"
+
+- name: Fetch mambaforge 
+  ansible.builtin.uri:
+    url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+    dest: /var/tmp/Mambaforge-Linux-x86_64.sh
+    creates: /var/tmp/Mambaforge-Linux-x86_64.sh
+
+- name: Install mambaforge
+  ansible.builtin.command:
+    cmd: "bash /var/tmp/Mambaforge-Linux-x86_64.sh -b -p /shared/home/{{item}}/mambaforge"
+    creates: "/shared/home/{{item}}/mambaforge"
+  become_user: "{{ item }}"
+  loop: "{{usernames}}"
+
+- name: Setup conda channels
+  ansible.builtin.shell:
+    cmd: "source /shared/home/{{item}}/mambaforge/bin/activate && conda config --add channels defaults && conda config --add channels bioconda && conda config --add channels bioconda && conda config --set channel_priority strict && touch /shared/home/{{item}}/mambaforge/conda_configured"
+    creates: "/shared/home/{{item}}/mambaforge/conda_configured"
+    executable: /bin/bash
+  become_user: "{{ item }}"
+  loop: "{{usernames}}"
+
+- name: Install software
+  ansible.builtin.shell:
+    cmd: "source /shared/home/{{item}}/mambaforge/bin/activate && mamba create -n qc -y fastqc flexbar trimmomatic multiqc"
+    creates: "/shared/home/{{item}}/mambaforge/envs/qc"
+    executable: /bin/bash
+  become_user: "{{ item }}"
+  loop: "{{usernames}}"
+

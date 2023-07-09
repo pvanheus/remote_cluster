@@ -1,0 +1,77 @@
+---
+- name: Install aptitude
+  ansible.builtin.apt:
+    name: aptitude
+    state: latest
+    update_cache: true
+
+- name: Install required system packages
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - software-properties-common
+    state: latest
+    update_cache: true
+
+- name: Ensure that keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+
+- name: Install Docker keyring
+  ansible.builtin.shell:
+    cmd: /usr/bin/curl -fsSL https://download.docker.com/linux/ubuntu/gpg | /usr/bin/gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Check if Docker repository exists
+  ansible.builtin.shell:
+    cmd: if [ -f /etc/apt/sources.list.d/docker.list ] ; then echo yes ; fi
+  register: docker_repo_exists
+
+- name: Install Docker apt respository
+  block:
+    - name: Register architecture
+      ansible.builtin.shell:
+        cmd: /usr/bin/dpkg --print-architecture
+      register: architecture
+
+    - name: Register codename
+      ansible.builtin.shell:
+        cmd: . /etc/os-release && /usr/bin/echo "$VERSION_CODENAME"
+      register: codename
+
+    - name: Install Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=\"{{architecture.stdout}}\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{codename.stdout}} stable"
+        filename: docker
+
+  when: docker_repo_exists.stdout != 'yes'
+
+- name: Install Docker
+  ansible.builtin.apt:
+    name: docker-ce
+    update_cache: true
+
+- name: Set MTU size for Docker
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: "{ \"mtu\": {{ docker_mtu }} }"
+    mode: 0644
+    owner: root
+    group: root
+  notify:
+    - Restart Docker
+
+- name: Ensure that Required Users are is in Docker group
+  ansible.builtin.user:
+    name: "{{item}}"
+    groups: [ "docker" ]
+    append: true
+  loop: "{{ docker_users }}"
+

@@ -1,0 +1,68 @@
+---
+- name: Setup /etc/hosts
+  ansible.builtin.lineinfile:
+    line: "{{item}}"
+    path: "/etc/hosts"
+  loop:
+    - "192.168.20.68 worker-1"
+    - "192.168.20.77 worker-2"
+    - "192.168.20.84 worker-3"
+    - "192.168.20.88 head"
+    - "192.168.20.89 nfs"
+
+- name: Install Apptainer repo
+  ansible.builtin.apt_repository:
+    repo: ppa:apptainer/ppa
+
+- name: Install necessary packages
+  ansible.builtin.apt:
+    name: "{{item}}"
+  loop:
+    - nfs-common
+    - apptainer
+
+- name: Install bioinformatics packages
+  ansible.builtin.apt:
+    name: "{{item}}"
+  loop: "{{bx_software}}"
+
+- name: Ensure that mount point exists for NFS
+  ansible.builtin.file:
+    path: /shared
+    state: directory
+
+- name: Mount NFS filesystem
+  ansible.posix.mount:
+    path: /shared
+    src: "nfs:/data"
+    state: mounted
+    opts: "hard,_netdev,nofail"
+    fstype: nfs
+
+- name: Ensure that training group exists
+  ansible.builtin.group:
+    name: "{{training_group.name}}"
+    gid: "{{training_group.id}}"
+
+- name: Ensure that users exist
+  ansible.builtin.user:
+    name: "{{item.name}}"
+    uid: "{{item.id}}"
+    password: "{{item.password | password_hash('sha256') }}"
+    group: "{{training_group.name}}"
+    home: "/shared/home/{{item.name}}"
+    create_home: false
+    shell: /bin/bash
+  loop: "{{cluster_users | default([])}}"
+  async: 600
+  poll: 5
+
+- name: Ensure that user home directories exist
+  ansible.builtin.file:
+    path: "/shared/home/{{item}}"
+    owner: "{{item}}"
+    group: "{{training_group.name}}"
+    mode: 0755
+    state: directory
+  loop: "{{usernames| default([])}}"
+

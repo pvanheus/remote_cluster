@@ -1,0 +1,2 @@
+docker_mtu: 1450
+docker_users: [ "{{ansible_user | default('ubuntu') }}" ]

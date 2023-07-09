@@ -1,0 +1,43 @@
+---
+- name: Ensure Wetty container is running
+  community.docker.docker_container:
+    name: wetty
+    image: wettyoss/wetty
+    restart_policy: "unless-stopped"
+    ports:
+      - "3000:3000"
+    command: "--ssh-host={{wetty_host}} --base /"
+
+- name: Configure Nginx
+  block:
+    - name: Install nginx config
+      ansible.builtin.template:
+        dest: /etc/nginx/sites-available/wetty
+        src: wetty.j2
+        mode: 0755
+        owner: root
+        group: root
+
+    - name: Ensure old default site is gone
+      ansible.builtin.file:
+        path: "{{item}}"
+        state: absent
+      loop:
+        - /etc/nginx/sites-available/default
+        - /etc/nginx/sites-enabled/default
+
+    - name: Ensure that link for wetty site exists
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/wetty
+        src: /etc/nginx/sites-available/wetty
+        state: link
+  notify:
+    - Restart nginx
+
+- name: Allow password logins to ssh
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^PasswordAuthentication no"
+    line: "PasswordAuthentication yes"
+  notify:
+    - Restart sshd

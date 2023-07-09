@@ -1,0 +1,2 @@
+cluster_users: []
+usernames: "{{cluster_users | map(attribute='name') }}"

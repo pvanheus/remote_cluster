@@ -1,0 +1,31 @@
+---
+- name: Install training material
+  ansible.posix.synchronize:
+    src: nf-training
+    dest: "/shared/home/{{item}}"
+  become_user: "{{item}}"
+  loop: "{{usernames}}"
+  run_once: True
+
+- name: Ensure that dependencies are installed
+  ansible.builtin.apt:
+    name: "{{item}}"
+    state: present
+  loop:
+    - default-jre-headless
+    - git
+    - apptainer
+
+- name: Install nextflow
+  ansible.builtin.shell:
+    cmd: "curl -s https://get.nextflow.io | bash && mv nextflow /usr/local/bin && chmod 0755 /usr/local/bin/nextflow"
+    creates: /usr/local/bin/nextflow
+
+- name: Do nextflow run
+  ansible.builtin.command:
+    cmd: /usr/local/bin/nextflow -v
+    creates: "/shared/home/{{item}}/.nextflow/capsule"
+  become_user: "{{item}}"
+  loop: "{{usernames}}"
+  run_once: True
+

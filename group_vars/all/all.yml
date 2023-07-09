@@ -1,0 +1,40 @@
+slurm_config:
+  ControlMachine: head
+  SchedulerType: sched/backfill
+  SelectType: select/cons_res
+  SelectTypeParameters: CR_Core_Memory
+  ReturnToService: 2
+  DefMemPerCPU: 2048
+
+slurm_cgroup_config:
+  CgroupAutomount: yes
+  ConstrainRamSpace: yes
+  ConstrainCores: yes
+
+slurm_nodes:
+ - name: "worker-[1-4]"
+   CoresPerSocket: 2
+   Sockets: 2
+   ThreadsPerCore: 1
+   RealMemory: 30720
+
+slurm_partitions:
+ - name: main
+   default: YES
+   OverSubscribe: FORCE:4
+   MaxTime: UNLIMITED
+   Nodes: "worker-[1-2]"
+
+slurm_munge_key: "munge.key"
+
+cluster_users:
+  - name: user1
+    id: 2000
+  - name: user2
+    id: 2001
+
+training_group:
+  name: docker
+  id: 999
+
+usernames: "{{ cluster_users | map(attribute='name') }}"

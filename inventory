@@ -1,0 +1,11 @@
+---
+heads:
+  hosts:
+    head:
+      ansible_host: 192.168.20.88
+workers:
+  hosts:
+    worker-1:
+      ansible_host: 192.168.20.68
+    worker-2:
+      ansible_host: 192.168.20.77
