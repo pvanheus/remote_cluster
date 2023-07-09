@@ -1,0 +1,8 @@
+slurm_roles: ['exec']
+
+bx_software:
+  - multiqc
+  - samtools
+  - bcftools
+  - bowtie2
+  - freebayes

@@ -1,0 +1,44 @@
+---
+- name: Slurm Cluster
+  hosts: all
+  roles:
+    - role: slurm
+      become: True
+      tags: [ 'slurm' ]
+    - role: cluster_config
+      become: True
+      tags: [ 'cluster']
+
+- name: Webby
+  hosts: heads
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+      become: True
+      tags: [ 'nginx', 'webby' ]
+  roles:
+    - role: ansible-role-certbot
+      become: True
+      tags: [ 'letsencrypt', 'webby' ]
+    - role: docker
+      become: True
+      tags: [ 'docker', 'webby' ]
+    - role: wetty
+      become: True
+      tags: [ 'wettyconfig', 'wetty' ]
+    - role: genomics_shell
+      become: True
+      tags: [ 'genomics_shell' ]    
+
+- name: Nextflow
+  hosts: workers
+  roles:
+    - role: nextflow
+      become: True
+      tags: [ 'nextflow' ]
+    - role: docker
+      become: True
+      tags: [ 'docker', 'nextflow' ]
+      vars:
+        docker_users: "{{ range(1, 31) | map('regex_replace', '^([0-9]+)$', 'user\\1') }}"
